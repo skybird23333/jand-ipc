@@ -1,5 +1,5 @@
 {
-  "name": "jand-ipc",
+  "name": "@skybird23333/jand-ipc",
   "version": "1.0.0",
   "description": "An Ipc wrapper for JanD",
   "main": "index.js",
@@ -8,5 +8,14 @@
     "generate-typings": "npx -p typescript tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir ."
   },
   "author": "skybird23333",
-  "license": "ISC"
+  "license": "ISC",
+  "types": "./index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skybird23333/jand-ipc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/skybird23333/jand-ipc/issues"
+  },
+  "homepage": "https://github.com/skybird23333/jand-ipc#readme"
 }

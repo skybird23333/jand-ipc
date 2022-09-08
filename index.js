@@ -65,6 +65,8 @@ class JandIpcError extends Error {
     }
 }
 
+module.exports.JandIpcError = JandIpcError
+
 /**
  * @private
  * @param {string} type 
@@ -168,7 +170,6 @@ module.exports.renameProcess = async function(oldname, newname) {
  * Send a line to the target process. 0.7+ only.    
  * @param {string} processname 
  * @param {string} text 
- * @returns 
  */
 module.exports.sendProcessStdinLine = async function(processname, text) {
     sendData('send-process-stdin-line', `${processname}:${text}`)
@@ -213,7 +214,6 @@ module.exports.setProcessProperty = async function(process, property, data) {
 /**
  * 
  * @param {ProcessInfo} process 
- * @returns 
  */
 module.exports.getProcessInfo = async function(process) {
     sendData('get-process-info', process)
@@ -267,7 +267,6 @@ module.exports.getConfig = async function() {
 /**
  * @param {string} option 
  * @param {string} value 
- * @returns 
  */
 module.exports.setConfig = async function(option, value) {
     sendData('set-config', `${option}:${value}`)

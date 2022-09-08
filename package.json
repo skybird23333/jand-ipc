@@ -1,0 +1,12 @@
+{
+  "name": "jand-ipc",
+  "version": "1.0.0",
+  "description": "An Ipc wrapper for JanD",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate-typings": "npx -p typescript tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir ."
+  },
+  "author": "skybird23333",
+  "license": "ISC"
+}

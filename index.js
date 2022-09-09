@@ -77,7 +77,7 @@ module.exports.JandIpcError = JandIpcError
     socket.write(
         JSON.stringify({
             Type: type,
-            Data: data
+            Data: (typeof data === 'string' ? data : JSON.stringify(data))
         })
     )
 }
@@ -246,8 +246,8 @@ module.exports.restartProcess = async function(process) {
  */
 module.exports.newProcess = async function(process) {
     sendData('new-process', process)
-    const res = await expectResponse(/done|ERR:.+/)
-    if(res == 'done') return
+    const res = await expectResponse(/added|ERR:.+/)
+    if(res == 'added') return
 }
 
 module.exports.saveConfig = async function() {

@@ -12,7 +12,9 @@ async function run() {
     console.log(await jand.getRuntimeProcessList())
     await jand.newProcess({
         Name: 'sus',
-        WorkingDirectory: 'i'
+        WorkingDirectory: '/',
+        Arguments: [],
+        Filename: "",
     }).catch(e => {
         console.log(e) // JandIpcError: ERR Something something
     })

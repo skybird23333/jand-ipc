@@ -1,6 +1,6 @@
 {
   "name": "jand-ipc",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "An Ipc wrapper for JanD",
   "main": "index.js",
   "scripts": {

@@ -2,7 +2,7 @@
 const net = require('net')
 let socket
 
-var DEBUG = true
+var DEBUG = false
 
 /**
  * @typedef {Object} ProcessInfo

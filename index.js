@@ -130,14 +130,6 @@ module.exports.connect = async function () {
 }
 
 /**
- * @returns {Promise<ProcessInfo[]>}
- */
-module.exports.getProcessList = async function () {
-    sendData('get-process-list')
-    return await expectResponse(['Name', 'Enabled'], true)
-}
-
-/**
  * @returns {Promise<RuntimeProcessInfo[]>}
  */
 module.exports.getRuntimeProcessList = async function () {

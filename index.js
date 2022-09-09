@@ -73,11 +73,12 @@ module.exports.JandIpcError = JandIpcError
  * @param {string | object | boolean | number} [data]
  */
  function sendData(type, data) {
-    if(DEBUG) console.log(`Sent ${type} ${data}`)
+    let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
+    if(DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
     socket.write(
         JSON.stringify({
             Type: type,
-            Data: (typeof data === 'string' ? data : JSON.stringify(data))
+            Data: dataSerialized
         })
     )
 }

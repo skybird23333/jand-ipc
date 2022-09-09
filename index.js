@@ -1,5 +1,6 @@
 //@ts-check
 const net = require('net')
+const os = require('os')
 let socket
 
 var DEBUG = false
@@ -124,9 +125,25 @@ function expectResponse(match, isarray=false) {
 
 /**
  * Connect to the JanD IPC socket
+ * @param {string} name | JAND_PIPE
  */
-module.exports.connect = async function () {
-    socket = net.connect('/tmp/CoreFxPipe_jand')
+module.exports.connect = async function (name="jand") {
+    let path
+    if (os.platform() === "win32") {
+        if (name.startsWith('/') || name.startsWith('\\')) {
+            path = name
+        } else {
+            path = "\\\\.\\pipe\\" + name
+        }
+    } else {
+        if (name.startsWith('/')) {
+            path = name
+        }
+        else {
+            path = "/tmp/CoreFxPipe_" + name
+        }
+    }
+    socket = net.connect(path)
 }
 
 /**

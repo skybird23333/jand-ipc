@@ -1,5 +1,4 @@
 export function connect(): Promise<void>;
-export function getProcessList(): Promise<ProcessInfo[]>;
 export function getRuntimeProcessList(): Promise<RuntimeProcessInfo[]>;
 export function getDaemonStatus(): Promise<DaemonStatus>;
 export function renameProcess(oldname: string, newname: string): Promise<void>;

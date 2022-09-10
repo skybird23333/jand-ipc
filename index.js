@@ -73,11 +73,12 @@ module.exports.JandIpcError = JandIpcError
  * @param {string | object | boolean | number} [data]
  */
  function sendData(type, data) {
-    if(DEBUG) console.log(`Sent ${type} ${data}`)
+    let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
+    if(DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
     socket.write(
         JSON.stringify({
             Type: type,
-            Data: data
+            Data: dataSerialized
         })
     )
 }
@@ -127,14 +128,6 @@ function expectResponse(match, isarray=false) {
  */
 module.exports.connect = async function () {
     socket = net.connect('/tmp/CoreFxPipe_jand')
-}
-
-/**
- * @returns {Promise<ProcessInfo[]>}
- */
-module.exports.getProcessList = async function () {
-    sendData('get-process-list')
-    return await expectResponse(['Name', 'Enabled'], true)
 }
 
 /**
@@ -246,8 +239,8 @@ module.exports.restartProcess = async function(process) {
  */
 module.exports.newProcess = async function(process) {
     sendData('new-process', process)
-    const res = await expectResponse(/done|ERR:.+/)
-    if(res == 'done') return
+    const res = await expectResponse(/added|ERR:.+/)
+    if(res == 'added') return
 }
 
 module.exports.saveConfig = async function() {

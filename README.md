@@ -8,11 +8,12 @@ const jand = require('jand-ipc')
 async function run() {
     await jand.connect()
     console.log(await jand.getDaemonStatus())
-    console.log(await jand.getProcessList())
     console.log(await jand.getRuntimeProcessList())
     await jand.newProcess({
         Name: 'sus',
-        WorkingDirectory: 'i'
+        WorkingDirectory: '/',
+        Arguments: [],
+        Filename: "",
     }).catch(e => {
         console.log(e) // JandIpcError: ERR Something something
     })
@@ -23,7 +24,7 @@ run()
 ```
 
 # Error handling
-If Jand sends back an error a `JandIpcError` will be thrown. 
+If JanD sends back an error a `JandIpcError` will be thrown.
 
 # The entire API Documentation
 > See https://jand.jan0660.dev/advanced/ipc-api for descriptions, unless otherwise specified here.
@@ -32,8 +33,6 @@ If Jand sends back an error a `JandIpcError` will be thrown.
 <dt><a href="#connect">connect()</a></dt>
 <dd><p>Connect to the JanD IPC socket</p>
 </dd>
-<dt><a href="#getProcessList">getProcessList()</a> ⇒ <code>Promise.&lt;Array.&lt;ProcessInfo&gt;&gt;</code></dt>
-<dd></dd>
 <dt><a href="#getRuntimeProcessList">getRuntimeProcessList()</a> ⇒ <code>Promise.&lt;Array.&lt;RuntimeProcessInfo&gt;&gt;</code></dt>
 <dd></dd>
 <dt><a href="#getDaemonStatus">getDaemonStatus()</a> ⇒ <code><a href="#DaemonStatus">Promise.&lt;DaemonStatus&gt;</a></code></dt>
@@ -88,10 +87,6 @@ If Jand sends back an error a `JandIpcError` will be thrown.
 ## connect()
 Connect to the JanD IPC socket
 
-**Kind**: global function
-<a name="getProcessList"></a>
-
-## getProcessList() ⇒ <code>Promise.&lt;Array.&lt;ProcessInfo&gt;&gt;</code>
 **Kind**: global function
 <a name="getRuntimeProcessList"></a>
 

@@ -1,4 +1,5 @@
-export function connect(): Promise<void>;
+export function connect(name?: string): Promise<void>;
+export function getProcessList(): Promise<ProcessInfo[]>;
 export function getRuntimeProcessList(): Promise<RuntimeProcessInfo[]>;
 export function getDaemonStatus(): Promise<DaemonStatus>;
 export function renameProcess(oldname: string, newname: string): Promise<void>;
@@ -11,7 +12,7 @@ export function stopProcess(process: string): Promise<boolean>;
 export function restartProcess(process: string): Promise<void>;
 export function newProcess(process: NewProcess): Promise<void>;
 export function saveConfig(): Promise<void>;
-export function getConfig(): Promise<any>;
+export function getConfig(): Promise<Config>;
 export function setConfig(option: string, value: string): Promise<void>;
 export function flushAllLogs(): Promise<void>;
 export type ProcessInfo = {
@@ -49,3 +50,12 @@ export type DaemonStatus = {
     Directory: string;
     Version: string;
 };
+export type Config = {
+    LogIpc: boolean;
+    FormatConfig: boolean;
+    MaxRestarts: number;
+    LogProcessOutput: boolean;
+};
+export class JandIpcError extends Error {
+    constructor(...params: any[]);
+}

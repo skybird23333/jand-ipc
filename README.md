@@ -30,7 +30,7 @@ If JanD sends back an error a `JandIpcError` will be thrown.
 > See https://jand.jan0660.dev/advanced/ipc-api for descriptions, unless otherwise specified here.
 
 <dl>
-<dt><a href="#connect">connect()</a></dt>
+<dt><a href="#connect">connect(name)</a></dt>
 <dd><p>Connect to the JanD IPC socket</p>
 </dd>
 <dt><a href="#getRuntimeProcessList">getRuntimeProcessList()</a> ⇒ <code>Promise.&lt;Array.&lt;RuntimeProcessInfo&gt;&gt;</code></dt>
@@ -84,8 +84,12 @@ If JanD sends back an error a `JandIpcError` will be thrown.
 
 <a name="connect"></a>
 
-## connect()
+## connect(name)
 Connect to the JanD IPC socket
+
+| Param | Type |
+| --- | --- |
+| name | <code>String</code> |
 
 **Kind**: global function
 <a name="getRuntimeProcessList"></a>

@@ -1,5 +1,6 @@
 //@ts-check
 const net = require('net')
+const os = require('os')
 let socket
 
 var DEBUG = false
@@ -73,11 +74,12 @@ module.exports.JandIpcError = JandIpcError
  * @param {string | object | boolean | number} [data]
  */
  function sendData(type, data) {
-    if(DEBUG) console.log(`Sent ${type} ${data}`)
+    let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
+    if(DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
     socket.write(
         JSON.stringify({
             Type: type,
-            Data: data
+            Data: dataSerialized
         })
     )
 }
@@ -125,17 +127,25 @@ function expectResponse(match, isarray=false) {
 
 /**
  * Connect to the JanD IPC socket
+ * @param {string} name | JAND_PIPE
  */
-module.exports.connect = async function () {
-    socket = net.connect('/tmp/CoreFxPipe_jand')
-}
-
-/**
- * @returns {Promise<ProcessInfo[]>}
- */
-module.exports.getProcessList = async function () {
-    sendData('get-process-list')
-    return await expectResponse(['Name', 'Enabled'], true)
+module.exports.connect = async function (name="jand") {
+    let path
+    if (os.platform() === "win32") {
+        if (name.startsWith('/') || name.startsWith('\\')) {
+            path = name
+        } else {
+            path = "\\\\.\\pipe\\" + name
+        }
+    } else {
+        if (name.startsWith('/')) {
+            path = name
+        }
+        else {
+            path = "/tmp/CoreFxPipe_" + name
+        }
+    }
+    socket = net.connect(path)
 }
 
 /**
@@ -247,8 +257,8 @@ module.exports.restartProcess = async function(process) {
  */
 module.exports.newProcess = async function(process) {
     sendData('new-process', process)
-    const res = await expectResponse(/done|ERR:.+/)
-    if(res == 'done') return
+    const res = await expectResponse(/added|ERR:.+/)
+    if(res == 'added') return
 }
 
 module.exports.saveConfig = async function() {

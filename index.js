@@ -104,6 +104,7 @@ function expectResponse(match, isarray=false) {
             } else {
                 try {
                     const data = JSON.parse(data_buffer)                    
+                    if (isarray && !data.length) return
                     const targetFields = 
                     isarray? Object.keys(data[0]) : Object.keys(data)
                     for (const field of match) {

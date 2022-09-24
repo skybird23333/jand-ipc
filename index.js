@@ -202,7 +202,7 @@ module.exports.exit = async function() {
  */
 module.exports.setEnabled = async function(process, enabled) {
     sendData('set-enabled', `${process}:${enabled.toString()}`)
-    await expectResponse(/done/)
+    await expectResponse(/True|False/)
     return
 }
 

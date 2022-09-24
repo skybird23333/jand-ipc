@@ -218,8 +218,9 @@ module.exports.setProcessProperty = async function(process, property, data) {
         Property: property,
         Data: data
     })
-    await expectResponse(/done/)
-    return
+    const response = await expectResponse(/done|Invalid/)
+    if(response == 'done') return
+    if(response.startsWith('Invalid')) throw new JandIpcError(`Property ${property} is invalid.`)
 }
 
 /**

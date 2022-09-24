@@ -233,7 +233,7 @@ module.exports.getProcessInfo = function(process) {
         sendData('get-process-info', process)
         expectResponse(['Name', 'Filename', 'Arguments', 'WorkingDirectory', 'AutoRestart', 'Enabled'])
         .catch(e => {
-            if(e.message.startsWith('ERR:invalid-process')) {
+            if(e.message.includes('ERR:invalid-process')) {
                 resolve(null)
             } else {
                 reject(e)

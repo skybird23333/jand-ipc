@@ -117,7 +117,7 @@ function expectResponse(match, isarray=false) {
 
                     resolve(data)
                 } catch (e) {
-                    console.log(e)
+                    if(DEBUG) console.log(e)
                 }
             }
         })

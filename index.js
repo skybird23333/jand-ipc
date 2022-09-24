@@ -226,11 +226,20 @@ module.exports.setProcessProperty = async function(process, property, data) {
 /**
  * 
  * @param {String} process 
- * @returns {Promise<RuntimeProcessInfo>}
+ * @returns {Promise<RuntimeProcessInfo | null>}
  */
-module.exports.getProcessInfo = async function(process) {
-    sendData('get-process-info', process)
-    return await expectResponse(['Name', 'Filename', 'Arguments', 'WorkingDirectory', 'AutoRestart', 'Enabled'])
+module.exports.getProcessInfo = function(process) {
+    return new Promise((resolve, reject) => {
+        sendData('get-process-info', process)
+        expectResponse(['Name', 'Filename', 'Arguments', 'WorkingDirectory', 'AutoRestart', 'Enabled'])
+        .catch(e => {
+            if(e.message.startsWith('ERR:invalid-process')) {
+                resolve(null)
+            } else {
+                reject(e)
+            }
+        })
+    })
 }
 
 /**

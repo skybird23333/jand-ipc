@@ -224,7 +224,8 @@ module.exports.setProcessProperty = async function(process, property, data) {
 
 /**
  * 
- * @param {ProcessInfo} process 
+ * @param {String} process 
+ * @returns {Promise<RuntimeProcessInfo>}
  */
 module.exports.getProcessInfo = async function(process) {
     sendData('get-process-info', process)

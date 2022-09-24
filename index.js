@@ -93,7 +93,7 @@ module.exports.JandIpcError = JandIpcError
 function expectResponse(match, isarray=false) {
     return new Promise((resolve, reject) => {
         socket.on('data', data_buffer => {
-            if(data_buffer.toString().startsWith('ERR')) throw new JandIpcError(data_buffer.toString())
+            if(data_buffer.toString().startsWith('ERR')) reject(new JandIpcError(data_buffer.toString()))
 
             if (DEBUG) console.log(`Received ${data_buffer.toString()}`)
 
@@ -228,7 +228,7 @@ module.exports.setProcessProperty = async function(process, property, data) {
  * @param {String} process 
  * @returns {Promise<RuntimeProcessInfo | null>}
  */
-module.exports.getProcessInfo = function(process) {
+ module.exports.getProcessInfo = function(process) {
     return new Promise((resolve, reject) => {
         sendData('get-process-info', process)
         expectResponse(['Name', 'Filename', 'Arguments', 'WorkingDirectory', 'AutoRestart', 'Enabled'])
@@ -238,6 +238,9 @@ module.exports.getProcessInfo = function(process) {
             } else {
                 reject(e)
             }
+        })
+        .then(data => {
+            resolve(data)
         })
     })
 }

@@ -1,3 +1,31 @@
+- [jand-ipc](#jand-ipc)
+- [Example Usage](#example-usage)
+- [Error handling](#error-handling)
+- [Changelogs](#changelogs)
+  - [1.0.4](#104)
+- [The entire API Documentation](#the-entire-api-documentation)
+  - [Typedefs](#typedefs)
+  - [connect(name)](#connectname)
+  - [getRuntimeProcessList() ⇒ <code>Promise.&lt;Array.&lt;RuntimeProcessInfo&gt;&gt;</code>](#getruntimeprocesslist--promisearrayruntimeprocessinfo)
+  - [getDaemonStatus() ⇒ <code>Promise.&lt;DaemonStatus&gt;</code>](#getdaemonstatus--promisedaemonstatus)
+  - [renameProcess(oldname, newname)](#renameprocessoldname-newname)
+  - [sendProcessStdinLine(processname, text)](#sendprocessstdinlineprocessname-text)
+  - [exit()](#exit)
+  - [setEnabled(process, enabled)](#setenabledprocess-enabled)
+  - [setProcessProperty(process, property, data)](#setprocesspropertyprocess-property-data)
+  - [getProcessInfo(process)](#getprocessinfoprocess)
+  - [stopProcess(process) ⇒](#stopprocessprocess-)
+  - [restartProcess(process)](#restartprocessprocess)
+  - [newProcess(process)](#newprocessprocess)
+  - [getConfig() ⇒ <code>Promise.&lt;Config&gt;</code>](#getconfig--promiseconfig)
+  - [setConfig(option, value)](#setconfigoption-value)
+  - [ProcessInfo : <code>Object</code>](#processinfo--object)
+  - [RuntimeProcessInfo : <code>Object</code>](#runtimeprocessinfo--object)
+  - [NewProcess : <code>Object</code>](#newprocess--object)
+  - [SetPropertyIpcPacket : <code>Object</code>](#setpropertyipcpacket--object)
+  - [DaemonStatus : <code>Object</code>](#daemonstatus--object)
+  - [Config : <code>Object</code>](#config--object)
+
 # jand-ipc
 An Ipc wrapper for JanD.
 
@@ -25,6 +53,10 @@ run()
 
 # Error handling
 If JanD sends back an error a `JandIpcError` will be thrown.
+
+# Changelogs
+## 1.0.4
+- Fixed wrong parameter type in `getProcessInfo()` (process should be string, not the process object)
 
 # The entire API Documentation
 > See https://jand.jan0660.dev/advanced/ipc-api for descriptions, unless otherwise specified here.

@@ -8,3 +8,8 @@ test('Connect to jand ipc', async() => {
     await client.connect()
     expect(client.connected).toBe(true);
 })
+
+test('Exit jand', async() => {
+    await client.exit()
+    expect(client.connected).toBe(false);
+})

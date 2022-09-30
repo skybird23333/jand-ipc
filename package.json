@@ -4,8 +4,8 @@
   "description": "An Ipc wrapper for JanD",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "generate-typings": "npx -p typescript tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir ."
+    "test": "jest",
+    "generate-typings": "npx -p typescript tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir .  -t es5"
   },
   "author": "skybird23333",
   "license": "ISC",
@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/skybird23333/jand-ipc/issues"
   },
-  "homepage": "https://github.com/skybird23333/jand-ipc#readme"
+  "homepage": "https://github.com/skybird23333/jand-ipc#readme",
+  "devDependencies": {
+    "jest": "^29.1.2"
+  }
 }

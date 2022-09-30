@@ -4,12 +4,22 @@ const jand = require('./index.js');
 
 const client = new jand.JandIpcClient();
 
+beforeAll(() => {
+    return client.connect()
+})
+
+afterAll(() => {
+    client.exit()
+})
+
 test('Connect to jand ipc', async() => {
-    await client.connect()
     expect(client.connected).toBe(true);
 })
 
-test('Exit jand', async() => {
-    await client.exit()
-    expect(client.connected).toBe(false);
+test('Get daemon status', async() => {
+    const status = await client.getDaemonStatus()
+    expect(status).toHaveProperty('Processes')
+    expect(status).toHaveProperty('NotSaved')
+    expect(status).toHaveProperty('Directory')
+    expect(status).toHaveProperty('Version')
 })

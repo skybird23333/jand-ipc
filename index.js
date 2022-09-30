@@ -166,7 +166,8 @@ class JandIpcClient extends EventEmitter {
     _sendData(type, data) {
         let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
         if (DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
-        socket.write(
+        if(!this.socket) throw new JandIpcError("Socket not connected")
+        this.socket.write(
             JSON.stringify({
                 Type: type,
                 Data: dataSerialized
@@ -192,26 +193,34 @@ class JandIpcClient extends EventEmitter {
     }
 
 
-    async connect() {
-        let path
-        if (os.platform() === "win32") {
-            if (this.name.startsWith('/') || this.name.startsWith('\\')) {
-                path = this.name
+    connect() {
+        return new Promise((resolve, reject) => {
+            let path
+            if (os.platform() === "win32") {
+                if (this.name.startsWith('/') || this.name.startsWith('\\')) {
+                    path = this.name
+                } else {
+                    path = "\\\\.\\pipe\\" + this.name
+                }
             } else {
-                path = "\\\\.\\pipe\\" + this.name
+                if (this.name.startsWith('/')) {
+                    path = this.name
+                }
+                else {
+                    path = "/tmp/CoreFxPipe_" + this.name
+                }
             }
-        } else {
-            if (this.name.startsWith('/')) {
-                path = this.name
-            }
-            else {
-                path = "/tmp/CoreFxPipe_" + this.name
-            }
-        }
-        socket = net.connect(path)
 
-        socket.on('data', (data) => {
-            this._handleResponse(data.toString())
+            this.socket = net.connect(path)            
+
+            this.socket.once('ready', () => {
+                resolve(true)
+            })
+
+            this.socket.on('data', (data) => {
+                this._handleResponse(data.toString())
+            })
+
         })
     }
 
@@ -312,7 +321,7 @@ class JandIpcClient extends EventEmitter {
     }
 
     get connected() {
-        return this.socket && this.socket.writable
+        return !!(this.socket && this.socket.writable)
     }
 
     /**

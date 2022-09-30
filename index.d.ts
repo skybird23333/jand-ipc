@@ -1,3 +1,13 @@
+export namespace events {
+    const OUTLOG: number;
+    const ERRLOG: number;
+    const PROCSTOP: number;
+    const PROCSTART: number;
+    const PROCADD: number;
+    const PROCDEL: number;
+    const PROCREN: number;
+}
+export function subscribe(events: any): Promise<void>;
 export function connect(name?: string): Promise<void>;
 export function getRuntimeProcessList(): Promise<RuntimeProcessInfo[]>;
 export function getDaemonStatus(): Promise<DaemonStatus>;
@@ -6,7 +16,7 @@ export function sendProcessStdinLine(processname: string, text: string): Promise
 export function exit(): Promise<void>;
 export function setEnabled(process: string, enabled: boolean): Promise<void>;
 export function setProcessProperty(process: string, property: string, data: string): Promise<void>;
-export function getProcessInfo(process: string): Promise<RuntimeProcessInfo>;
+export function getProcessInfo(process: string): Promise<RuntimeProcessInfo | null>;
 export function stopProcess(process: string): Promise<boolean>;
 export function restartProcess(process: string): Promise<void>;
 export function newProcess(process: NewProcess): Promise<void>;
@@ -55,6 +65,30 @@ export type Config = {
     MaxRestarts: number;
     LogProcessOutput: boolean;
 };
+export type BaseEvent = {
+    Event: string;
+};
+export type ProcessStartedEvent = {
+    Event: "procstart";
+    Process: string;
+};
+export type ProcessStoppedEvent = {
+    Event: "proctop";
+    Process: string;
+};
+export type ProcessRenameEvent = {
+    Event: "procren";
+    Process: string;
+    Value: string;
+};
+export type ProcessAddedEvent = {
+    Event: "procadd";
+    Process: string;
+};
+export type ProcessDeleteEvent = {
+    Event: "procdel";
+    Process: string;
+};
 /**
  * @typedef {Object} ProcessInfo
  * @property {string} Name
@@ -101,6 +135,36 @@ export type Config = {
  * @property {boolean} FormatConfig
  * @property {number} MaxRestarts
  * @property {boolean} LogProcessOutput
+ */
+/**
+ * @typedef {Object} BaseEvent
+ * @property {string} Event
+ */
+/**
+ * @typedef {Object} ProcessStartedEvent
+ * @property {"procstart"} Event
+ * @property {string} Process
+ */
+/**
+ * @typedef {Object} ProcessStoppedEvent
+ * @property {"proctop"} Event
+ * @property {string} Process
+ */
+/**
+ * @typedef {Object} ProcessRenameEvent
+ * @property {"procren"} Event
+ * @property {string} Process
+ * @property {string} Value
+ */
+/**
+ * @typedef {Object} ProcessAddedEvent
+ * @property {"procadd"} Event
+ * @property {string} Process
+ */
+/**
+ * @typedef {Object} ProcessDeleteEvent
+ * @property {"procdel"} Event
+ * @property {string} Process
  */
 export class JandIpcError extends Error {
     constructor(...params: any[]);

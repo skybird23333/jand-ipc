@@ -58,6 +58,50 @@ var DEBUG = false
  * @property {boolean} LogProcessOutput
  */
 
+/**
+ * @typedef {Object} BaseEvent
+ * @property {string} Event
+ */
+
+/**
+ * @typedef {Object} ProcessStartedEvent
+ * @property {"procstart"} Event
+ * @property {string} Process
+ */
+
+/**
+ * @typedef {Object} ProcessStoppedEvent
+ * @property {"proctop"} Event
+ * @property {string} Process
+ */
+
+/**
+ * @typedef {Object} ProcessRenameEvent
+ * @property {"procren"} Event
+ * @property {string} Process
+ * @property {string} Value
+ */
+
+/**
+ * @typedef {Object} ProcessAddedEvent
+ * @property {"procadd"} Event
+ * @property {string} Process
+ */
+
+/**
+ * @typedef {Object} ProcessDeleteEvent
+ * @property {"procdel"} Event
+ * @property {string} Process
+ */
+
+/**
+ * @private
+ * @typedef {Object} ResponseExpectation
+ * @property {RegExp} match
+ * @property {boolean} isarray
+ * @property {Function} resolve
+ */
+
 class JandIpcError extends Error {
     constructor(...params) {
         super(...params)

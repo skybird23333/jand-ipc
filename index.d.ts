@@ -1,29 +1,4 @@
-export namespace events {
-    const OUTLOG: number;
-    const ERRLOG: number;
-    const PROCSTOP: number;
-    const PROCSTART: number;
-    const PROCADD: number;
-    const PROCDEL: number;
-    const PROCREN: number;
-}
-export function subscribe(events: any): Promise<void>;
-export function connect(name?: string): Promise<void>;
-export function getRuntimeProcessList(): Promise<RuntimeProcessInfo[]>;
-export function getDaemonStatus(): Promise<DaemonStatus>;
-export function renameProcess(oldname: string, newname: string): Promise<void>;
-export function sendProcessStdinLine(processname: string, text: string): Promise<void>;
-export function exit(): Promise<void>;
-export function setEnabled(process: string, enabled: boolean): Promise<void>;
-export function setProcessProperty(process: string, property: string, data: string): Promise<void>;
-export function getProcessInfo(process: string): Promise<RuntimeProcessInfo | null>;
-export function stopProcess(process: string): Promise<boolean>;
-export function restartProcess(process: string): Promise<void>;
-export function newProcess(process: NewProcess): Promise<void>;
-export function saveConfig(): Promise<void>;
-export function getConfig(): Promise<Config>;
-export function setConfig(option: string, value: string): Promise<void>;
-export function flushAllLogs(): Promise<void>;
+/// <reference types="node" />
 export type ProcessInfo = {
     Name: string;
     Filename: string;
@@ -88,6 +63,13 @@ export type ProcessAddedEvent = {
 export type ProcessDeleteEvent = {
     Event: "procdel";
     Process: string;
+};
+export type ResponseExpectation = {
+    fields: string[];
+    match: RegExp;
+    isarray: boolean;
+    resolve: Function;
+    reject: Function;
 };
 /**
  * @typedef {Object} ProcessInfo
@@ -166,6 +148,145 @@ export type ProcessDeleteEvent = {
  * @property {"procdel"} Event
  * @property {string} Process
  */
+/**
+ * @private
+ * @typedef {Object} ResponseExpectation
+ * @property {string[]} fields
+ * @property {RegExp} match
+ * @property {boolean} isarray
+ * @property {Function} resolve
+ * @property {Function} reject
+ */
 export class JandIpcError extends Error {
     constructor(...params: any[]);
 }
+export namespace events {
+    const outlog: number;
+    const errlog: number;
+    const procstop: number;
+    const procstart: number;
+    const procadd: number;
+    const procdel: number;
+    const procren: number;
+}
+export class JandIpcClient extends EventEmitter {
+    /**
+     * @param {string} [name]
+     */
+    constructor(name?: string);
+    name: string;
+    DEBUG: boolean;
+    /**
+     * @type {net.Socket | null}
+     */
+    socket: net.Socket | null;
+    /**
+     * @type {ResponseExpectation[]}
+     */
+    expectations: ResponseExpectation[];
+    expectsEvent: number;
+    /**
+     * @private
+     * @param {string} type
+     * @param {string | object | boolean | number} [data]
+     */
+    private _sendData;
+    /**
+     * @private
+     * @param {string} data
+     */
+    private _sendRaw;
+    subscribe(events: any): void;
+    connect(): Promise<void>;
+    /**
+     * Expect a response from the IPC channel. Either a RegExp or an array of object fields if response is JSON.
+     * @private
+     * @param {Array} fields
+     * @param {RegExp} [match]
+     * @param {boolean} isarray | If matching obj, is it in an array? This will only match the first object.
+     */
+    private _expectResponse;
+    /**
+     * @private
+     * @param {String} data
+     */
+    private _handleResponse;
+    /**
+     * @private
+     * @param {any} evt
+     */
+    private _handleEvent;
+    get connected(): boolean;
+    /**
+ * @returns {Promise<RuntimeProcessInfo[]>}
+ */
+    getRuntimeProcessList(): Promise<RuntimeProcessInfo[]>;
+    /**
+     *
+     * @returns {Promise<DaemonStatus>}
+     */
+    getDaemonStatus(): Promise<DaemonStatus>;
+    /**
+     *
+     * @param {String} oldname
+     * @param {String} newname
+     */
+    renameProcess(oldname: string, newname: string): Promise<void>;
+    /**
+     * Send a line to the target process. 0.7+ only.
+     * @param {string} processname
+     * @param {string} text
+     */
+    sendProcessStdinLine(processname: string, text: string): Promise<void>;
+    /**
+     * Exit the daemon.
+     */
+    exit(): Promise<void>;
+    /**
+     * Enable/disable a process
+     * @param {string} process
+     * @param {boolean} enabled
+     */
+    setEnabled(process: string, enabled: boolean): Promise<void>;
+    /**
+     *
+     * @param {string} process
+     * @param {string} property
+     * @param {string} data
+     */
+    setProcessProperty(process: string, property: string, data: string): Promise<void>;
+    /**
+     *
+     * @param {String} process
+     * @returns {Promise<RuntimeProcessInfo | null>}
+     */
+    getProcessInfo(process: string): Promise<RuntimeProcessInfo | null>;
+    /**
+     *
+     * @param {string} process
+     * @returns true if process was running
+     */
+    stopProcess(process: string): Promise<boolean>;
+    /**
+     * @param {string} process
+     */
+    restartProcess(process: string): Promise<void>;
+    /**
+     * Starts a new process and enables it, but does not run it
+     * @param {NewProcess} process
+     */
+    newProcess(process: NewProcess): Promise<void>;
+    saveConfig(): Promise<void>;
+    /**
+     * @returns {Promise<Config>}
+     */
+    getConfig(): Promise<Config>;
+    /**
+     * @param {string} option
+     * @param {string} value
+     */
+    setConfig(option: string, value: string): Promise<void>;
+    flushAllLogs(): Promise<void>;
+}
+import EventEmitter = require("events");
+import net = require("net");

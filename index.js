@@ -1,6 +1,8 @@
 //@ts-check
 const net = require('net')
+const EventEmitter = require('node:events')
 const os = require('os')
+const { resolve } = require('path')
 let socket
 
 var DEBUG = false
@@ -97,9 +99,11 @@ var DEBUG = false
 /**
  * @private
  * @typedef {Object} ResponseExpectation
+ * @property {string[]} fields
  * @property {RegExp} match
  * @property {boolean} isarray
  * @property {Function} resolve
+ * @property {Function} reject
  */
 
 class JandIpcError extends Error {
@@ -112,239 +116,361 @@ class JandIpcError extends Error {
 
 module.exports.JandIpcError = JandIpcError
 
-/**
- * @private
- * @param {string} type 
- * @param {string | object | boolean | number} [data]
- */
- function sendData(type, data) {
-    let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
-    if(DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
-    socket.write(
-        JSON.stringify({
-            Type: type,
-            Data: dataSerialized
-        })
-    )
+const events = {
+    outlog: 0b0000_0001,
+    // errlog
+    errlog: 0b0000_0010,
+    // procstop
+    procstop: 0b0000_0100,
+    // procstart
+    procstart: 0b0000_1000,
+    // procadd
+    procadd: 0b0001_0000,
+    // procdel
+    procdel: 0b0010_0000,
+    // procren
+    procren: 0b0100_0000,
 }
 
-/**
- * Expect a response from the IPC channel. Either a RegExp or an array of object fields if response is JSON.
- * @private
- * @param {RegExp | Array} match 
- * @param {boolean} isarray | If matching obj, is it in an array? This will only match the first object.
- */
-function expectResponse(match, isarray=false) {
-    return new Promise((resolve, reject) => {
-        socket.on('data', data_buffer => {
-            if(data_buffer.toString().startsWith('ERR')) reject(new JandIpcError(data_buffer.toString()))
+module.exports.events = events
 
-            if (DEBUG) console.log(`Received ${data_buffer.toString()}`)
 
-            if (match instanceof RegExp) {
-                
-                if (match.test(data_buffer.toString())) {
-                    resolve(data_buffer.toString())
-                }
-            
+class JandIpcClient extends EventEmitter {
+    /**
+     * @param {string} [name]
+     */
+    constructor(name) {
+        super()
+        this.name = name || "jand"
+
+        this.DEBUG = false
+
+        /**
+         * @type {net.Socket | null}
+         */
+        this.socket = null
+
+        /**
+         * @type {ResponseExpectation[]}
+         */
+        this.expectations = []
+
+        this.expectsEvent = 0b0000_0000
+    }
+
+    /**
+     * @private
+     * @param {string} type 
+     * @param {string | object | boolean | number} [data]
+     */
+    _sendData(type, data) {
+        let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
+        if (DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
+        socket.write(
+            JSON.stringify({
+                Type: type,
+                Data: dataSerialized
+            })
+        )
+    }
+
+    /**
+     * @private
+     * @param {string} data 
+     */
+    _sendRaw(data) {
+        socket.write(data)
+    }
+
+    subscribe(events) {
+        for (const event of events) {
+            if (events[event]) {
+                this.expectsEvent |= events[event]
+            }
+        }
+        this._sendData('subscribe', events)
+    }
+
+
+    async connect() {
+        let path
+        if (os.platform() === "win32") {
+            if (this.name.startsWith('/') || this.name.startsWith('\\')) {
+                path = this.name
             } else {
-                try {
-                    const data = JSON.parse(data_buffer)                    
-                    if (isarray && !data.length) return
-                    const targetFields = 
-                    isarray? Object.keys(data[0]) : Object.keys(data)
-                    for (const field of match) {
+                path = "\\\\.\\pipe\\" + this.name
+            }
+        } else {
+            if (this.name.startsWith('/')) {
+                path = this.name
+            }
+            else {
+                path = "/tmp/CoreFxPipe_" + this.name
+            }
+        }
+        socket = net.connect(path)
+
+        socket.on('data', (data) => {
+            this._handleResponse(data.toString())
+        })
+    }
+
+    /**
+     * Expect a response from the IPC channel. Either a RegExp or an array of object fields if response is JSON.
+     * @private
+     * @param {Array} fields 
+     * @param {RegExp} [match] 
+     * @param {boolean} isarray | If matching obj, is it in an array? This will only match the first object.
+     */
+    _expectResponse(fields, isarray = false, match) {
+        return new Promise((resolve, reject) => {
+            this.expectations.push({
+                isarray,
+                fields,
+                resolve,
+                match: match || /asdgneigioqeg/,
+                reject,
+            })
+        })
+    }
+
+    /**
+     * @private
+     * @param {String} data
+     */
+    _handleResponse(data) {
+        try {
+            const jsonData = JSON.parse(data)
+            if (this.DEBUG) {
+                console.log('JSON response received')
+                console.log(jsonData)
+            }
+
+            if (jsonData.Event) {
+                // CASE 1 Event
+                this._handleEvent(jsonData)
+            }
+            else if (this.expectations.length > 0) {
+                // CASE 2 JSON Response
+                for (const exp of this.expectations) {
+
+                    if (!exp.fields.length) return
+
+                    // if expecting array but response not an array, return
+                    if (exp.isarray && !data.length) return
+
+                    // if expecting an array, sample the first element
+                    const targetFields =
+                        exp.isarray ? Object.keys(jsonData[0]) : Object.keys(jsonData)
+
+
+                    let matchingFields = true
+                    // if the response doesn't have the expected fields, return
+                    for (const field of exp.fields) {
                         if (!targetFields.find(i => i == field)) {
-                            return
+                            matchingFields = false
+                            break
                         }
                     }
+                    if (!matchingFields) break
 
-                    resolve(data)
-                } catch (e) {
-                    if(DEBUG) console.log(e)
+                    exp.resolve(jsonData)
                 }
             }
-        })
-    }
-    )
-}
+        } catch (e) {
+            if (e instanceof SyntaxError) {
+                // CASE 3(string data)
+                if (this.DEBUG) console.log("String response received" + data)
 
-/**
- * Connect to the JanD IPC socket
- * @param {string} name | JAND_PIPE
- */
-module.exports.connect = async function (name="jand") {
-    let path
-    if (os.platform() === "win32") {
-        if (name.startsWith('/') || name.startsWith('\\')) {
-            path = name
-        } else {
-            path = "\\\\.\\pipe\\" + name
-        }
-    } else {
-        if (name.startsWith('/')) {
-            path = name
-        }
-        else {
-            path = "/tmp/CoreFxPipe_" + name
+                if (data.startsWith('ERR:')) {
+                    throw new JandIpcError(data)
+                }
+
+                //match string response
+                for (const exp of this.expectations) {
+                    if (!exp.match) return
+                    if (exp.match.test(data)) {
+                        exp.resolve(data)
+                        break
+                    }
+                }
+            }
         }
     }
-    socket = net.connect(path)
-}
 
-/**
+    /**
+     * @private
+     * @param {any} evt 
+     */
+    _handleEvent(evt) {
+
+        if (events[evt.Event]) {
+            if (events[evt.Event] & this.expectsEvent) {
+                this.emit(evt.Event, evt)
+            }
+        }
+    }
+
+    get connected() {
+        return this.socket && this.socket.writable
+    }
+
+    /**
  * @returns {Promise<RuntimeProcessInfo[]>}
  */
-module.exports.getRuntimeProcessList = async function () {
-    sendData('get-processes')
-    return await expectResponse(['Name', 'Running', 'Stopped'], true)
-}
+    async getRuntimeProcessList() {
+        this._sendData('get-processes')
+        return await this._expectResponse(['Name', 'Running', 'Stopped'], true)
+    }
 
 
-/**
- * 
- * @returns {Promise<DaemonStatus>}
- */
-module.exports.getDaemonStatus = async function () {
-    sendData('status')
-    return await expectResponse(['Processes', 'NotSaved'])
-}
+    /**
+     * 
+     * @returns {Promise<DaemonStatus>}
+     */
+    async getDaemonStatus() {
+        this._sendData('status')
+        return await this._expectResponse(['Processes', 'NotSaved'])
+    }
 
-/**
- * 
- * @param {String} oldname 
- * @param {String} newname 
- */
-module.exports.renameProcess = async function(oldname, newname) {
-    sendData('rename-process', `${oldname}:${newname}`)
-    const data = await expectResponse(/done|ERR:.+/)
-    if(data == 'done') return
-}
+    /**
+     * 
+     * @param {String} oldname 
+     * @param {String} newname 
+     */
+    async renameProcess(oldname, newname) {
+        this._sendData('rename-process', `${oldname}:${newname}`)
+        const data = await this._expectResponse([], false, /done|ERR:.+/)
+        if (data == 'done') return
+    }
 
-/**
- * Send a line to the target process. 0.7+ only.    
- * @param {string} processname 
- * @param {string} text 
- */
-module.exports.sendProcessStdinLine = async function(processname, text) {
-    sendData('send-process-stdin-line', `${processname}:${text}`)
-    await expectResponse(/done/)
-    return
-}
+    /**
+     * Send a line to the target process. 0.7+ only.    
+     * @param {string} processname 
+     * @param {string} text 
+     */
+    async sendProcessStdinLine(processname, text) {
+        this._sendData('send-process-stdin-line', `${processname}:${text}`)
+        await this._expectResponse([], false, /done/)
+        return
+    }
 
-/**
- * Exit the daemon.
- */
-module.exports.exit = async function() {
-    sendData('exit')
-}
+    /**
+     * Exit the daemon.
+     */
+    async exit() {
+        this._sendData('exit')
+    }
 
-/**
- * Enable/disable a process
- * @param {string} process 
- * @param {boolean} enabled 
- */
-module.exports.setEnabled = async function(process, enabled) {
-    sendData('set-enabled', `${process}:${enabled.toString()}`)
-    await expectResponse(/True|False/)
-    return
-}
+    /**
+     * Enable/disable a process
+     * @param {string} process 
+     * @param {boolean} enabled 
+     */
+    async setEnabled(process, enabled) {
+        this._sendData('set-enabled', `${process}:${enabled.toString()}`)
+        await this._expectResponse([], false, /True|False/)
+        return
+    }
 
-/**
- * 
- * @param {string} process 
- * @param {string} property 
- * @param {string} data 
- */
-module.exports.setProcessProperty = async function(process, property, data) {
-    sendData('set-process-property', {
-        Process: process,
-        Property: property,
-        Data: data
-    })
-    const response = await expectResponse(/done|Invalid/)
-    if(response == 'done') return
-    if(response.startsWith('Invalid')) throw new JandIpcError(`Property ${property} is invalid.`)
-}
-
-/**
- * 
- * @param {String} process 
- * @returns {Promise<RuntimeProcessInfo | null>}
- */
- module.exports.getProcessInfo = function(process) {
-    return new Promise((resolve, reject) => {
-        sendData('get-process-info', process)
-        expectResponse(['Name', 'Filename', 'Arguments', 'WorkingDirectory', 'AutoRestart', 'Enabled'])
-        .catch(e => {
-            if(e.message.includes('ERR:invalid-process')) {
-                resolve(null)
-            } else {
-                reject(e)
-            }
+    /**
+     * 
+     * @param {string} process 
+     * @param {string} property 
+     * @param {string} data 
+     */
+    async setProcessProperty(process, property, data) {
+        this._sendData('set-process-property', {
+            Process: process,
+            Property: property,
+            Data: data
         })
-        .then(data => {
-            resolve(data)
+        const response = await this._expectResponse([], false, /done|Invalid/)
+        if (response == 'done') return
+        if (response.startsWith('Invalid')) throw new JandIpcError(`Property ${property} is invalid.`)
+    }
+
+    /**
+     * 
+     * @param {String} process 
+     * @returns {Promise<RuntimeProcessInfo | null>}
+     */
+    async getProcessInfo(process) {
+        return new Promise((resolve, reject) => {
+            this._sendData('get-process-info', process)
+            this._expectResponse(['Name', 'Filename', 'Arguments', 'WorkingDirectory', 'AutoRestart', 'Enabled'])
+                .catch(e => {
+                    if (e.message.includes('ERR:invalid-process')) {
+                        resolve(null)
+                    } else {
+                        reject(e)
+                    }
+                })
+                .then(data => {
+                    resolve(data)
+                })
         })
-    })
+    }
+
+    /**
+     * 
+     * @param {string} process 
+     * @returns true if process was running
+     */
+    async stopProcess(process) {
+        this._sendData('stop-process', process)
+        const response = await this._expectResponse([], false, /killed|already-stopped/)
+        return response == 'killed'
+    }
+
+    /**
+     * @param {string} process 
+     */
+    async restartProcess(process) {
+        this._sendData('restart-process', process)
+        await this._expectResponse([], false, /done/)
+        return
+    }
+
+    /**
+     * Starts a new process and enables it, but does not run it
+     * @param {NewProcess} process 
+     */
+    async newProcess(process) {
+        this._sendData('new-process', process)
+        const res = await this._expectResponse([], false, /added|ERR:.+/)
+        if (res == 'added') return
+    }
+
+    async saveConfig() {
+        this._sendData('save-config')
+        await this._expectResponse([], false, /done/)
+        return
+    }
+
+    /**
+     * @returns {Promise<Config>}
+     */
+    async getConfig() {
+        this._sendData('get-config')
+        return await this._expectResponse(['LogIpc', 'FormatConfig'])
+    }
+
+    /**
+     * @param {string} option 
+     * @param {string} value 
+     */
+    async setConfig(option, value) {
+        this._sendData('set-config', `${option}:${value}`)
+        const res = await this._expectResponse([], false, /done|Option.+/)
+        if (res == 'done') return
+    }
+
+    async flushAllLogs() {
+        this._sendData('flush-all-logs')
+        await this._expectResponse([], false, /done/)
+        return
+    }
 }
 
-/**
- * 
- * @param {string} process 
- * @returns true if process was running
- */
-module.exports.stopProcess = async function(process) {
-    sendData('stop-process', process)
-    const response = await expectResponse(/killed|already-stopped/)
-    return response == 'killed'
-}
-
-/**
- * @param {string} process 
- */
-module.exports.restartProcess = async function(process) {
-    sendData('restart-process', process)
-    await expectResponse(/done/)
-    return
-}
-
-/**
- * Starts a new process and enables it, but does not run it
- * @param {NewProcess} process 
- */
-module.exports.newProcess = async function(process) {
-    sendData('new-process', process)
-    const res = await expectResponse(/added|ERR:.+/)
-    if(res == 'added') return
-}
-
-module.exports.saveConfig = async function() {
-    sendData('save-config')
-    await expectResponse(/done/)
-    return
-}
-
-/**
- * @returns {Promise<Config>}
- */
-module.exports.getConfig = async function() {
-    sendData('get-config')
-    return await expectResponse(['LogIpc', 'FormatConfig'])
-}
-
-/**
- * @param {string} option 
- * @param {string} value 
- */
-module.exports.setConfig = async function(option, value) {
-    sendData('set-config', `${option}:${value}`)
-    const res = await expectResponse(/done|Option.+/)
-    if(res == 'done') return
-}
-
-module.exports.flushAllLogs = async function() {
-    sendData('flush-all-logs')
-    await expectResponse(/done/)
-    return
-}
+module.exports.JandIpcClient = JandIpcClient

@@ -24,6 +24,9 @@ jobs:
     
     - name: Install JanD
       run: sudo mv jand-linux-x64-aot /usr/bin/jand
+    
+    - name: Fix permission of JanD executable
+      run: chmod 777 /usr/bin/jand
 
     - name: Run JanD in background
       run: jand start-daemon &
@@ -33,5 +36,8 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+
+    - name: Install npm modules
+      run: npm i
     
     - run: npm test

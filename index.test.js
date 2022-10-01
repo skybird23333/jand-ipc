@@ -3,7 +3,6 @@
 
 const jand = require('./index.js');
 const client = new jand.JandIpcClient();
-const http = require('http')
 
 client.DEBUG = true
 
@@ -93,7 +92,7 @@ describe('JanD Events', () => {
         
     })
     
-    test('procren event', async () => {
+    test('procdel event', async () => {
         return new Promise(async (resolve, reject) => {
             await client.deleteProcess('foo')
             client.on('procdel', data => {

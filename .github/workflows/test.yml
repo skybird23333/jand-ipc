@@ -14,11 +14,12 @@ jobs:
     strategy:
       matrix:
         node-version: [16.x, 18.x]
+        jand-version: [v0.7.0, v0.7.1]
     steps:
     - uses: actions/checkout@v3
     
     - name: Download JanD
-      run: wget https://github.com/Jan0660/JanD/releases/download/v0.7.1/jand-linux-x64-aot
+      run: wget https://github.com/Jan0660/JanD/releases/download/${{ matrix.jand-version }}/jand-linux-x64-aot
     
     - name: Install JanD
       run: sudo mv jand-linux-x64-aot /usr/bin/jand

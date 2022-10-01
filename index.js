@@ -107,6 +107,13 @@ let socket
  * @property {boolean} isarray
  * @property {Function} resolve
  * @property {Function} reject
+ * @property {ResponseExpectationOptions} [options]
+ */
+
+/**
+ * @private
+ * @typedef {Object} ResponseExpectationOptions
+ * @property {boolean} [allowEmptyArray]
  */
 
 /**
@@ -271,15 +278,17 @@ class JandIpcClient extends EventEmitter {
      * @param {Array} fields 
      * @param {RegExp} [match] 
      * @param {boolean} isarray | If matching obj, is it in an array? This will only match the first object.
+     * @param {ResponseExpectationOptions} [options]
      */
-    _expectResponse(fields, isarray = false, match) {
+    _expectResponse(fields, isarray = false, match, options = {}) {
         return new Promise((resolve, reject) => {
             this.expectations.push({
                 isarray,
                 fields,
-                resolve,
                 match: match || /asdgneigioqeg/,
+                resolve,
                 reject,
+                options,
             })
         })
     }
@@ -322,6 +331,8 @@ class JandIpcClient extends EventEmitter {
             }
             // CASE 2 JSON Response
             for (const exp of this.expectations) {
+            
+                const options = exp.options || {}
 
                 if (!exp.fields.length) return
 
@@ -332,7 +343,6 @@ class JandIpcClient extends EventEmitter {
                 const targetFields =
                     exp.isarray ? Object.keys(jsonData[0]) : Object.keys(jsonData)
 
-
                 let matchingFields = true
                 // if the response doesn't have the expected fields, return
                 for (const field of exp.fields) {
@@ -341,7 +351,10 @@ class JandIpcClient extends EventEmitter {
                         break
                     }
                 }
-                if (!matchingFields) break
+                if (!matchingFields) {
+                    if(options.allowEmptyArray && jsonData.length == 0) resolve([])
+                    break
+                }
 
                 exp.resolve(jsonData)
                 this.expectations.splice(this.expectations.indexOf(exp), 1)

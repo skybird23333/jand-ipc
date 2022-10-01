@@ -282,6 +282,7 @@ class JandIpcClient extends EventEmitter {
                     if (!matchingFields) break
 
                     exp.resolve(jsonData)
+                    this.expectations.splice(this.expectations.indexOf(exp), 1)
                 }
             }
         } catch (e) {
@@ -290,14 +291,17 @@ class JandIpcClient extends EventEmitter {
                 if (this.DEBUG) console.log("Rec Str: " + data)
 
                 if (data.startsWith('ERR:')) {
-                    throw new JandIpcError(data)
+                    this.expectations[0].reject(new JandIpcError(data))
+                    this.expectations.shift()
+                    return
                 }
-
+                
                 //match string response
                 for (const exp of this.expectations) {
                     if (!exp.match) return
                     if (exp.match.test(data)) {
                         exp.resolve(data)
+                        this.expectations.splice(this.expectations.indexOf(exp), 1)
                         break
                     }
                 }

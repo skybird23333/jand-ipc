@@ -5,8 +5,6 @@ const os = require('os')
 const { resolve } = require('path')
 let socket
 
-var DEBUG = false
-
 /**
  * @typedef {Object} ProcessInfo
  * @property {string} Name
@@ -165,8 +163,8 @@ class JandIpcClient extends EventEmitter {
      */
     _sendData(type, data) {
         let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
-        if (DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
-        if(!this.socket) throw new JandIpcError("Socket not connected")
+        if (this.DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
+        if (!this.socket) throw new JandIpcError("Socket not connected")
         this.socket.write(
             JSON.stringify({
                 Type: type,
@@ -211,7 +209,7 @@ class JandIpcClient extends EventEmitter {
                 }
             }
 
-            this.socket = net.connect(path)            
+            this.socket = net.connect(path)
 
             this.socket.once('ready', () => {
                 resolve(true)
@@ -251,7 +249,7 @@ class JandIpcClient extends EventEmitter {
         try {
             const jsonData = JSON.parse(data)
             if (this.DEBUG) {
-                console.log('JSON response received')
+                console.log('Rec JSON: ')
                 console.log(jsonData)
             }
 
@@ -289,7 +287,7 @@ class JandIpcClient extends EventEmitter {
         } catch (e) {
             if (e instanceof SyntaxError) {
                 // CASE 3(string data)
-                if (this.DEBUG) console.log("String response received" + data)
+                if (this.DEBUG) console.log("Rec Str: " + data)
 
                 if (data.startsWith('ERR:')) {
                     throw new JandIpcError(data)
@@ -325,8 +323,8 @@ class JandIpcClient extends EventEmitter {
     }
 
     /**
- * @returns {Promise<RuntimeProcessInfo[]>}
- */
+     * @returns {Promise<RuntimeProcessInfo[]>}
+     */
     async getRuntimeProcessList() {
         this._sendData('get-processes')
         return await this._expectResponse(['Name', 'Running', 'Stopped'], true)
@@ -449,6 +447,16 @@ class JandIpcClient extends EventEmitter {
         this._sendData('new-process', process)
         const res = await this._expectResponse([], false, /added|ERR:.+/)
         if (res == 'added') return
+    }
+
+    /**
+     * Kill a process and delete it.
+     * @param {string} process 
+     */
+    async deleteProcess(process) {
+        this._sendData('delete-process', process)
+        const res = await this._expectResponse([], false, /done/)
+        if (res == 'done') return
     }
 
     async saveConfig() {

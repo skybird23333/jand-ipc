@@ -197,7 +197,7 @@ export class JandIpcClient extends EventEmitter {
      */
     private _sendRaw;
     subscribe(events: any): void;
-    connect(): Promise<void>;
+    connect(): Promise<any>;
     /**
      * Expect a response from the IPC channel. Either a RegExp or an array of object fields if response is JSON.
      * @private
@@ -218,8 +218,8 @@ export class JandIpcClient extends EventEmitter {
     private _handleEvent;
     get connected(): boolean;
     /**
- * @returns {Promise<RuntimeProcessInfo[]>}
- */
+     * @returns {Promise<RuntimeProcessInfo[]>}
+     */
     getRuntimeProcessList(): Promise<RuntimeProcessInfo[]>;
     /**
      *
@@ -276,6 +276,11 @@ export class JandIpcClient extends EventEmitter {
      * @param {NewProcess} process
      */
     newProcess(process: NewProcess): Promise<void>;
+    /**
+     * Kill a process and delete it.
+     * @param {string} process
+     */
+    deleteProcess(process: string): Promise<void>;
     saveConfig(): Promise<void>;
     /**
      * @returns {Promise<Config>}

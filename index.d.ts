@@ -76,6 +76,13 @@ export type ResponseExpectation = {
     resolve: Function;
     reject: Function;
 };
+export type EventExpectation = {
+    event?: string;
+    match?: RegExp;
+    resolve: Function;
+    reject: Function;
+};
+export type EventString = "procstart" | "proctop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog";
 /**
  * @typedef {Object} ProcessInfo
  * @property {string} Name
@@ -167,10 +174,21 @@ export type ResponseExpectation = {
  * @property {Function} resolve
  * @property {Function} reject
  */
+/**
+ * @private
+ * @typedef {Object} EventExpectation
+ * @property {string} [event]
+ * @property {RegExp} [match]
+ * @property {Function} resolve
+ * @property {Function} reject
+ */
+/**
+ * @typedef {"procstart" | "proctop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog"} EventString
+ */
 export class JandIpcError extends Error {
     constructor(...params: any[]);
 }
-export namespace events {
+export namespace EventsEnum {
     const outlog: number;
     const errlog: number;
     const procstop: number;
@@ -194,11 +212,16 @@ export class JandIpcClient extends EventEmitter {
      * @type {ResponseExpectation[]}
      */
     expectations: ResponseExpectation[];
-    expectsEvent: number;
+    /**
+     * @type {EventExpectation[]}
+     */
+    eventExpectations: EventExpectation[];
+    expectsEventFlags: number;
     /**
      * @private
      * @param {string} type
      * @param {string | object | boolean | number} [data]
+     * @param {boolean} isEventsSocket
      */
     private _sendData;
     /**
@@ -206,8 +229,13 @@ export class JandIpcClient extends EventEmitter {
      * @param {string} data
      */
     private _sendRaw;
-    subscribe(events: any): void;
+    /**
+     * Subscribe to a list of events
+     * @param {EventString[]} events
+     */
+    subscribe(events: EventString[]): Promise<void>;
     connect(): Promise<any>;
+    eventsSocket: net.Socket;
     /**
      * Expect a response from the IPC channel. Either a RegExp or an array of object fields if response is JSON.
      * @private
@@ -216,6 +244,12 @@ export class JandIpcClient extends EventEmitter {
      * @param {boolean} isarray | If matching obj, is it in an array? This will only match the first object.
      */
     private _expectResponse;
+    /**
+     * Expect a string response or event name.
+     * @param {RegExp | string} match
+     * @returns
+     */
+    _expectEventResponse(match: RegExp | string): Promise<any>;
     /**
      * @private
      * @param {String} data

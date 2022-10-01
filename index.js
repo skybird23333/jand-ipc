@@ -109,6 +109,19 @@ let socket
  * @property {Function} reject
  */
 
+/**
+ * @private
+ * @typedef {Object} EventExpectation
+ * @property {string} [event]
+ * @property {RegExp} [match]
+ * @property {Function} resolve
+ * @property {Function} reject
+ */
+
+/**
+ * @typedef {"procstart" | "proctop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog"} EventString
+ */
+
 class JandIpcError extends Error {
     constructor(...params) {
         super(...params)
@@ -119,7 +132,7 @@ class JandIpcError extends Error {
 
 module.exports.JandIpcError = JandIpcError
 
-const events = {
+const EventsEnum = {
     outlog: 0b0000_0001,
     // errlog
     errlog: 0b0000_0010,
@@ -135,7 +148,7 @@ const events = {
     procren: 0b0100_0000,
 }
 
-module.exports.events = events
+module.exports.EventsEnum = EventsEnum
 
 
 class JandIpcClient extends EventEmitter {
@@ -158,24 +171,38 @@ class JandIpcClient extends EventEmitter {
          */
         this.expectations = []
 
-        this.expectsEvent = 0b0000_0000
+        /**
+         * @type {EventExpectation[]}
+         */
+        this.eventExpectations = []
+
+        this.expectsEventFlags = 0b0000_0000
     }
 
     /**
      * @private
      * @param {string} type 
      * @param {string | object | boolean | number} [data]
+     * @param {boolean} isEventsSocket
      */
-    _sendData(type, data) {
+    _sendData(type, data, isEventsSocket = false) {
         let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
-        if (this.DEBUG) console.log(`Sent ${type} ${dataSerialized}`)
-        if (!this.socket) throw new JandIpcError("Socket not connected")
-        this.socket.write(
-            JSON.stringify({
+        if (this.DEBUG) console.log(`Sent${isEventsSocket ? `(EVENT)` : ''} ${type} ${dataSerialized}`)
+        if (!this.socket || !this.eventsSocket) throw new JandIpcError("Socket not connected")
+        if (isEventsSocket) {
+            this.eventsSocket.write(JSON.stringify({
                 Type: type,
                 Data: dataSerialized
-            })
-        )
+            }))
+        }
+        else {
+            this.socket.write(
+                JSON.stringify({
+                    Type: type,
+                    Data: dataSerialized
+                })
+            )
+        }
     }
 
     /**
@@ -186,13 +213,19 @@ class JandIpcClient extends EventEmitter {
         socket.write(data)
     }
 
-    subscribe(events) {
+    /**
+     * Subscribe to a list of events
+     * @param {EventString[]} events 
+     */
+    async subscribe(events) {
         for (const event of events) {
-            if (events[event]) {
-                this.expectsEvent |= events[event]
+            if (EventsEnum[event]) {
+                this.expectsEventFlags |= EventsEnum[event]
             }
         }
-        this._sendData('subscribe', events)
+        if (!this.eventsSocket) throw new JandIpcError("Socket not connected")
+        this._sendData('subscribe-events', this.expectsEventFlags, true)
+        await this._expectEventResponse(/done/)
     }
 
 
@@ -215,6 +248,7 @@ class JandIpcClient extends EventEmitter {
             }
 
             this.socket = net.connect(path)
+            this.eventsSocket = net.connect(path)
 
             this.socket.once('ready', () => {
                 resolve(true)
@@ -222,6 +256,10 @@ class JandIpcClient extends EventEmitter {
 
             this.socket.on('data', (data) => {
                 this._handleResponse(data.toString())
+            })
+
+            this.eventsSocket.on('data', (data) => {
+                this._handleEvent(data.toString())
             })
 
         })
@@ -247,6 +285,31 @@ class JandIpcClient extends EventEmitter {
     }
 
     /**
+     * Expect a string response or event name.
+     * @param {RegExp | string} match 
+     * @returns 
+     */
+    _expectEventResponse(match) {
+        if (typeof match === 'string') {
+            return new Promise((resolve, reject) => {
+                this.eventExpectations.push({
+                    resolve,
+                    reject,
+                    event: match,
+                })
+            })
+        } else {
+            return new Promise((resolve, reject) => {
+                this.eventExpectations.push({
+                    resolve,
+                    reject,
+                    match: match || /asdgneigioqeg/,
+                })
+            })
+        }
+    }
+
+    /**
      * @private
      * @param {String} data
      */
@@ -257,38 +320,31 @@ class JandIpcClient extends EventEmitter {
                 console.log('Rec JSON: ')
                 console.log(jsonData)
             }
+            // CASE 2 JSON Response
+            for (const exp of this.expectations) {
 
-            if (jsonData.Event) {
-                // CASE 1 Event
-                this._handleEvent(jsonData)
-            }
-            else if (this.expectations.length > 0) {
-                // CASE 2 JSON Response
-                for (const exp of this.expectations) {
+                if (!exp.fields.length) return
 
-                    if (!exp.fields.length) return
+                // if expecting array but response not an array, return
+                if (exp.isarray && !data.length) return
 
-                    // if expecting array but response not an array, return
-                    if (exp.isarray && !data.length) return
-
-                    // if expecting an array, sample the first element
-                    const targetFields =
-                        exp.isarray ? Object.keys(jsonData[0]) : Object.keys(jsonData)
+                // if expecting an array, sample the first element
+                const targetFields =
+                    exp.isarray ? Object.keys(jsonData[0]) : Object.keys(jsonData)
 
 
-                    let matchingFields = true
-                    // if the response doesn't have the expected fields, return
-                    for (const field of exp.fields) {
-                        if (!targetFields.find(i => i == field)) {
-                            matchingFields = false
-                            break
-                        }
+                let matchingFields = true
+                // if the response doesn't have the expected fields, return
+                for (const field of exp.fields) {
+                    if (!targetFields.find(i => i == field)) {
+                        matchingFields = false
+                        break
                     }
-                    if (!matchingFields) break
-
-                    exp.resolve(jsonData)
-                    this.expectations.splice(this.expectations.indexOf(exp), 1)
                 }
+                if (!matchingFields) break
+
+                exp.resolve(jsonData)
+                this.expectations.splice(this.expectations.indexOf(exp), 1)
             }
         } catch (e) {
             if (e instanceof SyntaxError) {
@@ -300,7 +356,7 @@ class JandIpcClient extends EventEmitter {
                     this.expectations.shift()
                     return
                 }
-                
+
                 //match string response
                 for (const exp of this.expectations) {
                     if (!exp.match) return
@@ -319,16 +375,46 @@ class JandIpcClient extends EventEmitter {
      * @param {any} evt 
      */
     _handleEvent(evt) {
-
-        if (events[evt.Event]) {
-            if (events[evt.Event] & this.expectsEvent) {
-                this.emit(evt.Event, evt)
+        try {
+            const jsonEvent = JSON.parse(evt)
+            
+            if (this.DEBUG) {
+                console.log('Rec JSON EVENT: ', evt)
             }
-        }
+
+            if (EventsEnum[jsonEvent.Event]) {
+                if (EventsEnum[jsonEvent.Event] & this.expectsEventFlags) {
+                    this.emit(jsonEvent.Event, jsonEvent)
+                    
+                    if (this.eventExpectations.length > 0) {
+                        for (const exp of this.eventExpectations) {
+                            if (exp.event == jsonEvent.Event) {
+                                exp.resolve(jsonEvent)
+                                this.eventExpectations.splice(this.eventExpectations.indexOf(exp), 1)
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+        } catch(e) {
+            if (this.DEBUG) {
+                console.log('Rec str EVENT: ', evt)
+            }
+            if (this.eventExpectations.length > 0) {
+                for (const exp of this.eventExpectations) {
+                    if (exp.match && exp.match.test(evt)) {
+                        exp.resolve(evt)
+                        this.eventExpectations.splice(this.eventExpectations.indexOf(exp), 1)
+                    break
+                }}  
+            }
+                
+            }
     }
 
     get connected() {
-        return !!(this.socket && this.socket.writable)
+        return (this.socket && this.socket.writable) && (this.eventsSocket && this.eventsSocket.writable)
     }
 
     /**

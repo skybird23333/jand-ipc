@@ -41,6 +41,7 @@ jobs:
     - run: npm test
 
     - name: Upload JanD log
+      if: always()
       uses: actions/upload-artifact@v3
       with:
         name: JanD Log

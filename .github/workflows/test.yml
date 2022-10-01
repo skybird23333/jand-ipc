@@ -39,3 +39,9 @@ jobs:
       run: npm i
     
     - run: npm test
+
+    - name: Upload JanD log
+      uses: actions/upload-artifact@v3
+      with:
+        name: JanD Log
+        path: daemon.log

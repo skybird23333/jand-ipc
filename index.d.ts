@@ -12,16 +12,21 @@ export type RuntimeProcessInfo = {
     Filename: string;
     Arguments: string[];
     WorkingDirectory: string;
-    AutoRestart: boolean;
     ProcessId: number;
+    Stopped: boolean;
     ExitCode: number;
     RestartCount: number;
+    Enabled: boolean;
+    AutoRestart: boolean;
+    Running: boolean;
+    Watch: boolean;
+    SafeIndex: number;
 };
 export type NewProcess = {
     Name: string;
     Filename: string;
     Arguments: string[];
-    WorkingDirectory: string;
+    WorkingDirectory?: string;
 };
 export type SetPropertyIpcPacket = {
     Process: string;
@@ -86,17 +91,22 @@ export type ResponseExpectation = {
  * @property {string} Filename
  * @property {string[]} Arguments
  * @property {string} WorkingDirectory
- * @property {boolean} AutoRestart
  * @property {number} ProcessId
+ * @property {boolean} Stopped
  * @property {number} ExitCode
  * @property {number} RestartCount
+ * @property {boolean} Enabled
+ * @property {boolean} AutoRestart
+ * @property {boolean} Running
+ * @property {boolean} Watch
+ * @property {number} SafeIndex
  */
 /**
  * @typedef {Object} NewProcess
  * @property {string} Name
  * @property {string} Filename
  * @property {string[]} Arguments
- * @property {string} WorkingDirectory
+ * @property {string} [WorkingDirectory]
  */
 /**
  * @typedef {Object} SetPropertyIpcPacket

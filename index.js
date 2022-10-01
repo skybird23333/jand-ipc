@@ -21,10 +21,15 @@ let socket
  * @property {string} Filename
  * @property {string[]} Arguments
  * @property {string} WorkingDirectory
- * @property {boolean} AutoRestart
  * @property {number} ProcessId
+ * @property {boolean} Stopped
  * @property {number} ExitCode
  * @property {number} RestartCount
+ * @property {boolean} Enabled
+ * @property {boolean} AutoRestart
+ * @property {boolean} Running
+ * @property {boolean} Watch
+ * @property {number} SafeIndex
  */
 
 /**
@@ -32,7 +37,7 @@ let socket
  * @property {string} Name
  * @property {string} Filename
  * @property {string[]} Arguments
- * @property {string} WorkingDirectory
+ * @property {string} [WorkingDirectory]
  */
 
 /**

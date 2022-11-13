@@ -37,9 +37,10 @@ If JanD sends back an error a `JandIpcError` will be thrown.
 # Changelogs
 
 ## 2.0.0
-**Breaking change(yay)**
+**Breaking change**
 The entire jand object is now a class extending EventEmitter.
 This means: 
+- Jand-ipc is officially OOP
 - You now have to use only one instance of the object and use it throughout your code.
 - You can't just import individual methods and use them.
 

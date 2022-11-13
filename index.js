@@ -332,16 +332,26 @@ class JandIpcClient extends EventEmitter {
             // CASE 2 JSON Response
             for (const exp of this.expectations) {
             
-                const options = exp.options || {}
-
-                if (!exp.fields.length) return
-
-                // if expecting array but response not an array, return
-                if (exp.isarray && !data.length) return
-
+                const options = exp.options ?? {}
+                
+                // Does not expect JSON, find next expectation
+                if (!exp.fields.length) continue
+                
                 // if expecting an array, sample the first element
+                
+                //option: allow array to be empty(wont check the fields)
+                if(exp.isarray && options.allowEmptyArray && !jsonData.length) {
+                    console.log('Empty array')
+                    exp.resolve(jsonData)
+                    this.expectations.splice(this.expectations.indexOf(exp), 1)
+                    return
+                }
+
+                //otherwise ignore empty array/obj
+                else if (!options.allowEmptyArray && exp.isarray && jsonData.length == 0) continue
+                
                 const targetFields =
-                    exp.isarray ? Object.keys(jsonData[0]) : Object.keys(jsonData)
+                exp.isarray ? Object.keys(jsonData[0]) : Object.keys(jsonData)       
 
                 let matchingFields = true
                 // if the response doesn't have the expected fields, return
@@ -351,8 +361,9 @@ class JandIpcClient extends EventEmitter {
                         break
                     }
                 }
+                
+                
                 if (!matchingFields) {
-                    if(options.allowEmptyArray && jsonData.length == 0) resolve([])
                     break
                 }
 
@@ -435,7 +446,7 @@ class JandIpcClient extends EventEmitter {
      */
     async getRuntimeProcessList() {
         this._sendData('get-processes')
-        return await this._expectResponse(['Name', 'Running', 'Stopped'], true)
+        return await this._expectResponse(['Name', 'Running', 'Stopped'], true, undefined, {allowEmptyArray: true})
     }
 
 

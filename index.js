@@ -76,7 +76,7 @@ let socket
 
 /**
  * @typedef {Object} ProcessStoppedEvent
- * @property {"proctop"} Event
+ * @property {"procstop"} Event
  * @property {string} Process
  */
 
@@ -126,7 +126,7 @@ let socket
  */
 
 /**
- * @typedef {"procstart" | "proctop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog"} EventString
+ * @typedef {"procstart" | "procstop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog"} EventString
  */
 
 class JandIpcError extends Error {

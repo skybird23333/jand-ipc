@@ -53,7 +53,7 @@ export type ProcessStartedEvent = {
     Process: string;
 };
 export type ProcessStoppedEvent = {
-    Event: "proctop";
+    Event: "procstop";
     Process: string;
 };
 export type ProcessRenameEvent = {
@@ -75,6 +75,10 @@ export type ResponseExpectation = {
     isarray: boolean;
     resolve: Function;
     reject: Function;
+    options?: ResponseExpectationOptions;
+};
+export type ResponseExpectationOptions = {
+    allowEmptyArray?: boolean;
 };
 export type EventExpectation = {
     event?: string;
@@ -82,7 +86,7 @@ export type EventExpectation = {
     resolve: Function;
     reject: Function;
 };
-export type EventString = "procstart" | "proctop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog";
+export type EventString = "procstart" | "procstop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog";
 /**
  * @typedef {Object} ProcessInfo
  * @property {string} Name
@@ -146,7 +150,7 @@ export type EventString = "procstart" | "proctop" | "procren" | "procadd" | "pro
  */
 /**
  * @typedef {Object} ProcessStoppedEvent
- * @property {"proctop"} Event
+ * @property {"procstop"} Event
  * @property {string} Process
  */
 /**
@@ -173,6 +177,12 @@ export type EventString = "procstart" | "proctop" | "procren" | "procadd" | "pro
  * @property {boolean} isarray
  * @property {Function} resolve
  * @property {Function} reject
+ * @property {ResponseExpectationOptions} [options]
+ */
+/**
+ * @private
+ * @typedef {Object} ResponseExpectationOptions
+ * @property {boolean} [allowEmptyArray]
  */
 /**
  * @private
@@ -183,7 +193,7 @@ export type EventString = "procstart" | "proctop" | "procren" | "procadd" | "pro
  * @property {Function} reject
  */
 /**
- * @typedef {"procstart" | "proctop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog"} EventString
+ * @typedef {"procstart" | "procstop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog"} EventString
  */
 export class JandIpcError extends Error {
     constructor(...params: any[]);
@@ -234,6 +244,30 @@ export class JandIpcClient extends EventEmitter {
      * @param {EventString[]} events
      */
     subscribe(events: EventString[]): Promise<void>;
+    /**
+     * Subscribe to logging events of a list of processes.
+     * @param {string[]} processes
+     */
+    subscribeLogEvents(processes: string[]): Promise<void>;
+    /**
+     * Subscribe to logging events of a process.
+     * @param {string} processname
+     */
+    subscribeLogEvent(processname: string): Promise<void>;
+    /**
+     * Subscribe to out logging events of a process.
+     * This has been marked obsolete, left for backwards compatibility.
+     * @param {string} processname
+     * @deprecated
+     */
+    subscribeOutLogEvent(processname: string): Promise<void>;
+    /**
+     * Subscribe to err logging events of a process.
+     * This has been marked obsolete, left for backwards compatibility.
+     * @param {string} processname
+     * @deprecated
+     */
+    subscribeErrLogEvent(processname: string): Promise<void>;
     connect(): Promise<any>;
     eventsSocket: net.Socket;
     /**
@@ -242,6 +276,7 @@ export class JandIpcClient extends EventEmitter {
      * @param {Array} fields
      * @param {RegExp} [match]
      * @param {boolean} isarray | If matching obj, is it in an array? This will only match the first object.
+     * @param {ResponseExpectationOptions} [options]
      */
     private _expectResponse;
     /**

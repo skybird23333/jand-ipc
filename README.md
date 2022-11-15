@@ -2,6 +2,7 @@
 - [Example Usage](#example-usage)
 - [Error handling](#error-handling)
 - [Changelogs](#changelogs)
+  - [2.1.0](#210)
   - [2.0.0](#200)
   - [1.0.4](#104)
 - [The entire API Documentation](#the-entire-api-documentation)
@@ -35,6 +36,11 @@ run()
 If JanD sends back an error a `JandIpcError` will be thrown.
 
 # Changelogs
+
+## 2.1.0
+- Added `subscribeLogEvent` and `subscribeLogEvents` methods. After using `<JandClient>.subscribe()`, these need to be called for the individual processes to subscribe to their logs.
+- Added `subscribeOutLogEvent` and `subscribeErrLogEvent` methods too for compatibility(they are deprecated)
+- Fixed a typo in the events enum (`proctop` -> `procstop`)
 
 ## 2.0.0
 **Breaking change**

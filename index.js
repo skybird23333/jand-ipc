@@ -382,7 +382,6 @@ class JandIpcClient extends EventEmitter {
                 
                 //option: allow array to be empty(wont check the fields)
                 if(exp.isarray && options.allowEmptyArray && !jsonData.length) {
-                    console.log('Empty array')
                     exp.resolve(jsonData)
                     this.expectations.splice(this.expectations.indexOf(exp), 1)
                     return
@@ -399,17 +398,18 @@ class JandIpcClient extends EventEmitter {
                 for (const field of exp.fields) {
                     if (!targetFields.find(i => i == field)) {
                         matchingFields = false
-                        break
+                        continue
                     }
                 }
                 
                 
                 if (!matchingFields) {
-                    break
+                    continue
                 }
 
                 exp.resolve(jsonData)
                 this.expectations.splice(this.expectations.indexOf(exp), 1)
+                break   
             }
         } catch (e) {
             if (e instanceof SyntaxError) {

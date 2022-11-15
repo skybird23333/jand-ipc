@@ -235,6 +235,47 @@ class JandIpcClient extends EventEmitter {
         await this._expectEventResponse(/done/)
     }
 
+    /**
+     * Subscribe to logging events of a list of processes.
+     * @param {string[]} processes
+     */
+    async subscribeLogEvents(processes) {
+        for (const process of processes) {
+            this.subscribeLogEvent(process)
+        }
+    }
+
+    /**
+     * Subscribe to logging events of a process.
+     * @param {string} processname 
+     */
+    async subscribeLogEvent(processname) {
+        this._sendData('subscribe-log-event', processname, true)
+        await this._expectEventResponse(/done/)
+    }
+
+    /**
+     * Subscribe to out logging events of a process.
+     * This has been marked obsolete, left for backwards compatibility.
+     * @param {string} processname 
+     * @deprecated
+     */
+    async subscribeOutLogEvent(processname) {
+        this._sendData('subscribe-outlog-event', processname, true)
+        await this._expectEventResponse(/done/)
+    }
+    
+    /**
+     * Subscribe to err logging events of a process.
+     * This has been marked obsolete, left for backwards compatibility.
+     * @param {string} processname 
+     * @deprecated
+     */
+    async subscribeErrLogEvent(processname) {
+        this._sendData('subscribe-outlog-event', processname, true)
+        await this._expectEventResponse(/done/)
+    }
+
 
     connect() {
         return new Promise((resolve, reject) => {

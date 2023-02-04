@@ -274,7 +274,7 @@ class JandIpcClient extends EventEmitter {
      * @param {string} processname 
      */
     async subscribeLogEvent(processname) {
-        await this._addRequestToQueue('subscribe-log-event', processname, true)
+        this._sendData('subscribe-log-event', processname, true)
         await this._expectEventResponse(/done/)
     }
 
@@ -494,6 +494,7 @@ class JandIpcClient extends EventEmitter {
     }
 
     /**
+     * 
      * Enable/disable a process
      * @param {string} process 
      * @param {boolean} enabled 

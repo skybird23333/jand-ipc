@@ -126,6 +126,17 @@ let socket
  */
 
 /**
+ * @private
+ * @typedef {Object} RequestQueueData
+ * @property {string} type
+ * @property {string} data
+ * @property {Function} resolve
+ * @property {Function} reject
+ * @property {boolean} isEventsSocket
+ * @property {"main" | "events"} [socket]
+ */
+
+/**
  * @typedef {"procstart" | "procstop" | "procren" | "procadd" | "procdel" | "outlog" | "errlog"} EventString
  */
 
@@ -174,9 +185,9 @@ class JandIpcClient extends EventEmitter {
         this.socket = null
 
         /**
-         * @type {ResponseExpectation[]}
+         * @type {RequestQueueData[]}
          */
-        this.expectations = []
+        this.requestQueue = []
 
         /**
          * @type {EventExpectation[]}
@@ -191,6 +202,25 @@ class JandIpcClient extends EventEmitter {
      * @param {string} type 
      * @param {string | object | boolean | number} [data]
      * @param {boolean} isEventsSocket
+     */
+    _addRequestToQueue(type, data, isEventsSocket = false) {
+        return new Promise((resolve, reject) => {
+            this.requestQueue.push({
+                type,
+                data,
+                resolve,
+                reject,
+                isEventsSocket
+            })
+
+            if (this.requestQueue.length === 1) {
+                this._sendData(type, data, isEventsSocket)
+            }
+        })
+    }
+
+    /**
+     * @private
      */
     _sendData(type, data, isEventsSocket = false) {
         let dataSerialized = (typeof data === 'string' ? data : JSON.stringify(data))
@@ -212,13 +242,7 @@ class JandIpcClient extends EventEmitter {
         }
     }
 
-    /**
-     * @private
-     * @param {string} data 
-     */
-    _sendRaw(data) {
-        socket.write(data)
-    }
+
 
     /**
      * Subscribe to a list of events
@@ -250,7 +274,7 @@ class JandIpcClient extends EventEmitter {
      * @param {string} processname 
      */
     async subscribeLogEvent(processname) {
-        this._sendData('subscribe-log-event', processname, true)
+        await this._addRequestToQueue('subscribe-log-event', processname, true)
         await this._expectEventResponse(/done/)
     }
 
@@ -261,7 +285,7 @@ class JandIpcClient extends EventEmitter {
      * @deprecated
      */
     async subscribeOutLogEvent(processname) {
-        this._sendData('subscribe-outlog-event', processname, true)
+        await this._addRequestToQueue('subscribe-outlog-event', processname, true)
         await this._expectEventResponse(/done/)
     }
     
@@ -272,7 +296,7 @@ class JandIpcClient extends EventEmitter {
      * @deprecated
      */
     async subscribeErrLogEvent(processname) {
-        this._sendData('subscribe-outlog-event', processname, true)
+        await this._addRequestToQueue('subscribe-outlog-event', processname, true)
         await this._expectEventResponse(/done/)
     }
 
@@ -314,27 +338,6 @@ class JandIpcClient extends EventEmitter {
     }
 
     /**
-     * Expect a response from the IPC channel. Either a RegExp or an array of object fields if response is JSON.
-     * @private
-     * @param {Array} fields 
-     * @param {RegExp} [match] 
-     * @param {boolean} isarray | If matching obj, is it in an array? This will only match the first object.
-     * @param {ResponseExpectationOptions} [options]
-     */
-    _expectResponse(fields, isarray = false, match, options = {}) {
-        return new Promise((resolve, reject) => {
-            this.expectations.push({
-                isarray,
-                fields,
-                match: match || /asdgneigioqeg/,
-                resolve,
-                reject,
-                options,
-            })
-        })
-    }
-
-    /**
      * Expect a string response or event name.
      * @param {RegExp | string} match 
      * @returns 
@@ -371,45 +374,11 @@ class JandIpcClient extends EventEmitter {
                 console.log(jsonData)
             }
             // CASE 2 JSON Response
-            for (const exp of this.expectations) {
-            
-                const options = exp.options ?? {}
-                
-                // Does not expect JSON, find next expectation
-                if (!exp.fields.length) continue
-                
-                // if expecting an array, sample the first element
-                
-                //option: allow array to be empty(wont check the fields)
-                if(exp.isarray && options.allowEmptyArray && !jsonData.length) {
-                    exp.resolve(jsonData)
-                    this.expectations.splice(this.expectations.indexOf(exp), 1)
-                    return
-                }
-
-                //otherwise ignore empty array/obj
-                else if (!options.allowEmptyArray && exp.isarray && jsonData.length == 0) continue
-                
-                const targetFields =
-                exp.isarray ? Object.keys(jsonData[0]) : Object.keys(jsonData)       
-
-                let matchingFields = true
-                // if the response doesn't have the expected fields, return
-                for (const field of exp.fields) {
-                    if (!targetFields.find(i => i == field)) {
-                        matchingFields = false
-                        continue
-                    }
-                }
-                
-                
-                if (!matchingFields) {
-                    continue
-                }
-
-                exp.resolve(jsonData)
-                this.expectations.splice(this.expectations.indexOf(exp), 1)
-                break   
+            const req = this.requestQueue[0]
+            req.resolve(jsonData)
+            this.requestQueue.splice(this.requestQueue.indexOf(req), 1)
+            if(this.requestQueue.length > 0) {
+                this._sendData(this.requestQueue[0].type, this.requestQueue[0].data, this.requestQueue[0].isEventsSocket)
             }
         } catch (e) {
             if (e instanceof SyntaxError) {
@@ -417,19 +386,16 @@ class JandIpcClient extends EventEmitter {
                 if (this.DEBUG) console.log("Rec Str: " + data)
 
                 if (data.startsWith('ERR:')) {
-                    this.expectations[0].reject(new JandIpcError(data))
-                    this.expectations.shift()
+                    this.requestQueue[0].reject(new JandIpcError(data))
+                    this.requestQueue.shift()
                     return
                 }
 
-                //match string response
-                for (const exp of this.expectations) {
-                    if (!exp.match) return
-                    if (exp.match.test(data)) {
-                        exp.resolve(data)
-                        this.expectations.splice(this.expectations.indexOf(exp), 1)
-                        break
-                    }
+                const req = this.requestQueue[0]
+                req.resolve(data)
+                this.requestQueue.splice(this.requestQueue.indexOf(req), 1)
+                if(this.requestQueue.length > 0) {
+                    this._sendData(this.requestQueue[0].type, this.requestQueue[0].data, this.requestQueue[0].isEventsSocket)
                 }
             }
         }
@@ -486,8 +452,7 @@ class JandIpcClient extends EventEmitter {
      * @returns {Promise<RuntimeProcessInfo[]>}
      */
     async getRuntimeProcessList() {
-        this._sendData('get-processes')
-        return await this._expectResponse(['Name', 'Running', 'Stopped'], true, undefined, {allowEmptyArray: true})
+        return await this._addRequestToQueue('get-processes')
     }
 
 
@@ -496,8 +461,8 @@ class JandIpcClient extends EventEmitter {
      * @returns {Promise<DaemonStatus>}
      */
     async getDaemonStatus() {
-        this._sendData('status')
-        return await this._expectResponse(['Processes', 'NotSaved'])
+        return await this._addRequestToQueue('status')
+        
     }
 
     /**
@@ -506,8 +471,7 @@ class JandIpcClient extends EventEmitter {
      * @param {String} newname 
      */
     async renameProcess(oldname, newname) {
-        this._sendData('rename-process', `${oldname}:${newname}`)
-        const data = await this._expectResponse([], false, /done|ERR:.+/)
+        const data = await this._addRequestToQueue('rename-process', `${oldname}:${newname}`)
         if (data == 'done') return
     }
 
@@ -517,8 +481,8 @@ class JandIpcClient extends EventEmitter {
      * @param {string} text 
      */
     async sendProcessStdinLine(processname, text) {
-        this._sendData('send-process-stdin-line', `${processname}:${text}`)
-        await this._expectResponse([], false, /done/)
+        await this._addRequestToQueue('send-process-stdin-line', `${processname}:${text}`)
+        
         return
     }
 
@@ -526,7 +490,7 @@ class JandIpcClient extends EventEmitter {
      * Exit the daemon.
      */
     async exit() {
-        this._sendData('exit')
+        await this._addRequestToQueue('exit')
     }
 
     /**
@@ -535,8 +499,8 @@ class JandIpcClient extends EventEmitter {
      * @param {boolean} enabled 
      */
     async setEnabled(process, enabled) {
-        this._sendData('set-enabled', `${process}:${enabled.toString()}`)
-        await this._expectResponse([], false, /True|False/)
+        await this._addRequestToQueue('set-enabled', `${process}:${enabled.toString()}`)
+        
         return
     }
 
@@ -547,12 +511,12 @@ class JandIpcClient extends EventEmitter {
      * @param {string} data 
      */
     async setProcessProperty(process, property, data) {
-        this._sendData('set-process-property', {
+        const response = await this._addRequestToQueue('set-process-property', {
             Process: process,
             Property: property,
             Data: data
         })
-        const response = await this._expectResponse([], false, /done|Invalid/)
+        
         if (response == 'done') return
         if (response.startsWith('Invalid')) throw new JandIpcError(`Property ${property} is invalid.`)
     }
@@ -564,18 +528,17 @@ class JandIpcClient extends EventEmitter {
      */
     async getProcessInfo(process) {
         return new Promise((resolve, reject) => {
-            this._sendData('get-process-info', process)
-            this._expectResponse(['Name', 'Filename', 'Arguments', 'WorkingDirectory', 'AutoRestart', 'Enabled'])
-                .catch(e => {
-                    if (e.message.includes('ERR:invalid-process')) {
-                        resolve(null)
-                    } else {
-                        reject(e)
-                    }
-                })
-                .then(data => {
-                    resolve(data)
-                })
+           this._addRequestToQueue('get-process-info', process)
+            .catch(e => {
+                if (e.message.includes('ERR:invalid-process')) {
+                    resolve(null)
+                } else {
+                    reject(e)
+                }
+            })
+            .then(data => {
+                resolve(data)
+            })
         })
     }
 
@@ -585,8 +548,7 @@ class JandIpcClient extends EventEmitter {
      * @returns true if process was running
      */
     async stopProcess(process) {
-        this._sendData('stop-process', process)
-        const response = await this._expectResponse([], false, /killed|already-stopped/)
+        const response = await this._addRequestToQueue('stop-process', process)
         return response == 'killed'
     }
 
@@ -594,8 +556,7 @@ class JandIpcClient extends EventEmitter {
      * @param {string} process 
      */
     async restartProcess(process) {
-        this._sendData('restart-process', process)
-        await this._expectResponse([], false, /done/)
+        await this._addRequestToQueue('restart-process', process)
         return
     }
 
@@ -604,8 +565,7 @@ class JandIpcClient extends EventEmitter {
      * @param {NewProcess} process 
      */
     async newProcess(process) {
-        this._sendData('new-process', process)
-        const res = await this._expectResponse([], false, /added|ERR:.+/)
+        const res = await this._addRequestToQueue('new-process', process)
         if (res == 'added') return
     }
 
@@ -614,14 +574,13 @@ class JandIpcClient extends EventEmitter {
      * @param {string} process 
      */
     async deleteProcess(process) {
-        this._sendData('delete-process', process)
-        const res = await this._expectResponse([], false, /done/)
+        const res = await this._addRequestToQueue('delete-process', process)
         if (res == 'done') return
     }
 
     async saveConfig() {
-        this._sendData('save-config')
-        await this._expectResponse([], false, /done/)
+        await this._addRequestToQueue('save-config')
+        
         return
     }
 
@@ -629,8 +588,7 @@ class JandIpcClient extends EventEmitter {
      * @returns {Promise<Config>}
      */
     async getConfig() {
-        this._sendData('get-config')
-        return await this._expectResponse(['LogIpc', 'FormatConfig'])
+        return await this._addRequestToQueue('get-config')
     }
 
     /**
@@ -638,14 +596,13 @@ class JandIpcClient extends EventEmitter {
      * @param {string} value 
      */
     async setConfig(option, value) {
-        this._sendData('set-config', `${option}:${value}`)
-        const res = await this._expectResponse([], false, /done|Option.+/)
+        const res = await this._addRequestToQueue('set-config', `${option}:${value}`)
         if (res == 'done') return
     }
 
     async flushAllLogs() {
-        this._sendData('flush-all-logs')
-        await this._expectResponse([], false, /done/)
+        await this._addRequestToQueue('flush-all-logs')
+        
         return
     }
 }

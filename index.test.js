@@ -1,5 +1,5 @@
 // This test expects a clean JanD installation.
-// It will function on an existing JanD instance, but note that it might cause some funnys.
+// It will function on an existing JanD instance, but note that it might cause some funnys(daemon will be restarted at the end)
 
 const jand = require('./index.js');
 const client = new jand.JandIpcClient();
@@ -70,6 +70,19 @@ describe('JanD Process', () => {
     })
 })
 
+describe('Known issues', () => {
+    test('Request queue jam', async () => {
+        const { length } = await client.getRuntimeProcessList()
+        const testProcessData = require('./test/test-data-queue-jam.json')
+        testProcessData.forEach(async (process) => {
+            client.newProcess(process)
+            client.getRuntimeProcessList()
+        })
+        const processes = await client.getRuntimeProcessList()
+        expect(processes.length).toBe(length + 14);
+    })
+})
+
 describe('JanD Events', () => {
     test('Subcribe to events', async () => {
         await client.subscribe(['procstart', 'procadd', 'procstop', 'procren', 'procdel'])
@@ -79,14 +92,14 @@ describe('JanD Events', () => {
     test('procadd event', async() => {
         return new Promise(async (resolve, reject) => {
             await client.newProcess({
-                Name: 'foo',
+                Name: 'foobar',
                 Filename: 'node',
                 Arguments: ['test/test-server.js'],
             })
             client.on('procadd', data => {
                 resolve(data)
                 expect(data).toHaveProperty('Process')
-                expect(data.Process).toBe('foo')
+                expect(data.Process).toBe('foobar')
             })
         })
         
